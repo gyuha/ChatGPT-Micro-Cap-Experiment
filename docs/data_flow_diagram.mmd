@@ -1,0 +1,59 @@
+flowchart TD
+    A[스크립트 시작] --> B{포트폴리오 CSV 존재?}
+    B -->|Yes| C[기존 포트폴리오 로드]
+    B -->|No| D[빈 포트폴리오 + 초기 현금 설정]
+    
+    C --> E[process_portfolio 호출]
+    D --> E
+    
+    E --> F{대화형 모드?}
+    F -->|Yes| G[수동 거래 입력 루프]
+    F -->|No| H[가격 업데이트 시작]
+    
+    G --> I{거래 유형}
+    I -->|매수 b| J[MOO/지정가 매수]
+    I -->|매도 s| K[지정가 매도]
+    I -->|Enter| H
+    
+    J --> L[가격 데이터 조회]
+    K --> L
+    L --> M[download_price_data]
+    
+    M --> N[Yahoo Finance 시도]
+    N --> O{성공?}
+    O -->|Yes| P[데이터 반환]
+    O -->|No| Q[Stooq PDR 시도]
+    Q --> R{성공?}
+    R -->|Yes| P
+    R -->|No| S[Stooq CSV 시도]
+    S --> T{성공?}
+    T -->|Yes| P
+    T -->|No| U[프록시 인덱스 시도]
+    U --> V{성공?}
+    V -->|Yes| P
+    V -->|No| W[빈 DataFrame 반환]
+    
+    P --> X[거래 실행]
+    W --> X
+    X --> Y[포트폴리오 업데이트]
+    Y --> G
+    
+    H --> Z[각 보유 종목 반복]
+    Z --> AA[현재가 조회]
+    AA --> M
+    P --> BB{손절매 조건 확인}
+    BB -->|조건 충족| CC[자동 손절매 실행]
+    BB -->|조건 미충족| DD[보유 지속]
+    CC --> EE[거래 로그 기록]
+    DD --> EE
+    EE --> FF{더 많은 종목?}
+    FF -->|Yes| Z
+    FF -->|No| GG[CSV 저장]
+    
+    GG --> HH[daily_results 호출]
+    HH --> II[벤치마크 데이터 조회]
+    II --> M
+    P --> JJ[성과 지표 계산]
+    JJ --> KK[CAPM 분석]
+    KK --> LL[결과 출력]
+    LL --> MM[종료]

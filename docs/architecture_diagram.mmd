@@ -1,0 +1,91 @@
+graph TB
+    subgraph "데이터 소스 계층"
+        YF[Yahoo Finance]
+        SP[Stooq PDR]
+        SC[Stooq CSV]
+        PI[프록시 인덱스]
+    end
+    
+    subgraph "데이터 접근 계층"
+        DPD[download_price_data]
+        FR[FetchResult]
+        NORM[_normalize_ohlcv]
+        DTI[_to_datetime_index]
+    end
+    
+    subgraph "날짜 관리"
+        LTD[last_trading_date]
+        TDW[trading_day_window]
+        CW[check_weekend]
+        ASOF[ASOF_DATE 오버라이드]
+    end
+    
+    subgraph "포트폴리오 관리"
+        PP[process_portfolio]
+        LS[log_sell]
+        LMB[log_manual_buy]
+        LMS[log_manual_sell]
+    end
+    
+    subgraph "설정 관리"
+        LB[load_benchmarks]
+        RJF[_read_json_file]
+        SDD[set_data_dir]
+        TJ[tickers.json]
+    end
+    
+    subgraph "리포팅 시스템"
+        DR[daily_results]
+        CAPM[CAPM 분석]
+        PERF[성과 지표]
+        MDD[최대 드로다운]
+    end
+    
+    subgraph "파일 시스템"
+        PF[포트폴리오 CSV]
+        TL[거래 로그 CSV]
+        BM[벤치마크 설정]
+    end
+    
+    DPD -->|1차| YF
+    DPD -->|2차| SP
+    DPD -->|3차| SC
+    DPD -->|4차| PI
+    
+    YF --> FR
+    SP --> FR
+    SC --> FR
+    PI --> FR
+    
+    FR --> NORM
+    NORM --> DTI
+    
+    LTD --> TDW
+    TDW --> DPD
+    ASOF --> LTD
+    
+    PP --> DPD
+    PP --> LS
+    PP --> LMB
+    PP --> LMS
+    
+    TJ --> LB
+    LB --> RJF
+    
+    PP --> PF
+    LS --> TL
+    LMB --> TL
+    LMS --> TL
+    
+    DR --> DPD
+    DR --> CAPM
+    DR --> PERF
+    DR --> MDD
+    DR --> LB
+    
+    style YF fill:#ff9999
+    style SP fill:#ffcc99
+    style SC fill:#ffff99
+    style PI fill:#ccffcc
+    style DPD fill:#99ccff
+    style PP fill:#cc99ff

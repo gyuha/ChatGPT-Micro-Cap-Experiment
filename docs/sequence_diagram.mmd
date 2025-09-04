@@ -1,0 +1,81 @@
+sequenceDiagram
+    participant User as 사용자
+    participant Main as main()
+    participant LoadState as load_latest_portfolio_state()
+    participant ProcessPort as process_portfolio()
+    participant DownloadData as download_price_data()
+    participant Yahoo as Yahoo Finance
+    participant Stooq as Stooq API
+    participant StooqCSV as Stooq CSV
+    participant Proxy as Proxy Index
+    participant DailyResults as daily_results()
+
+    User->>Main: 스크립트 실행
+    Main->>LoadState: 포트폴리오 로드
+    LoadState-->>Main: portfolio_df, cash
+    
+    Main->>ProcessPort: 포트폴리오 처리 시작
+    
+    alt 대화형 모드
+        ProcessPort->>User: 수동 거래 입력 요청
+        User-->>ProcessPort: 매수/매도 주문
+        ProcessPort->>DownloadData: 현재가 조회
+        DownloadData->>Yahoo: 1차 시도
+        alt Yahoo 성공
+            Yahoo-->>DownloadData: 가격 데이터
+        else Yahoo 실패
+            DownloadData->>Stooq: 2차 시도 (pandas-datareader)
+            alt Stooq PDR 성공
+                Stooq-->>DownloadData: 가격 데이터
+            else Stooq PDR 실패
+                DownloadData->>StooqCSV: 3차 시도 (CSV)
+                alt Stooq CSV 성공
+                    StooqCSV-->>DownloadData: 가격 데이터
+                else Stooq CSV 실패
+                    DownloadData->>Proxy: 4차 시도 (프록시 인덱스)
+                    Proxy-->>DownloadData: 프록시 데이터 또는 빈 결과
+                end
+            end
+        end
+        DownloadData-->>ProcessPort: 가격 데이터 반환
+        ProcessPort->>ProcessPort: 거래 실행 및 포트폴리오 업데이트
+    end
+    
+    loop 각 보유 종목
+        ProcessPort->>DownloadData: 현재가 조회
+        DownloadData->>Yahoo: 1차 시도
+        alt 데이터 소스 폴백 체인
+            Yahoo-->>DownloadData: 성공 시 데이터
+        else
+            DownloadData->>Stooq: 2차 시도
+            Stooq-->>DownloadData: 성공 시 데이터  
+        else
+            DownloadData->>StooqCSV: 3차 시도
+            StooqCSV-->>DownloadData: 성공 시 데이터
+        else
+            DownloadData->>Proxy: 4차 시도
+            Proxy-->>DownloadData: 최종 데이터
+        end
+        
+        DownloadData-->>ProcessPort: 가격 데이터
+        
+        alt 손절매 조건 확인
+            ProcessPort->>ProcessPort: 저가 <= 손절가?
+            ProcessPort->>ProcessPort: 손절매 실행 및 로깅
+        else
+            ProcessPort->>ProcessPort: 보유 지속
+        end
+    end
+    
+    ProcessPort->>ProcessPort: CSV 저장
+    ProcessPort-->>Main: 업데이트된 포트폴리오, 현금
+    
+    Main->>DailyResults: 일일 결과 생성
+    
+    loop 각 종목 + 벤치마크
+        DailyResults->>DownloadData: 가격 및 거래량 조회
+        DownloadData-->>DailyResults: 시장 데이터
+    end
+    
+    DailyResults->>DailyResults: 성과 지표 계산 (Sharpe, Sortino, CAPM)
+    DailyResults->>User: 결과 출력 (포트폴리오 스냅샷 + 성과 분석)

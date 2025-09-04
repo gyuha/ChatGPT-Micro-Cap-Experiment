@@ -1,0 +1,51 @@
+flowchart TD
+    A[가격 데이터 요청] --> B[Yahoo Finance 시도]
+    B --> C{성공?}
+    C -->|✅ 데이터 있음| D[Yahoo 데이터 반환]
+    C -->|❌ 실패/빈 데이터| E[Stooq PDR 시도]
+    
+    E --> F{pandas-datareader 사용 가능?}
+    F -->|❌ 라이브러리 없음| I
+    F -->|✅ 사용 가능| G[Stooq API 호출]
+    G --> H{성공?}
+    H -->|✅ 데이터 있음| D2[Stooq PDR 데이터 반환]
+    H -->|❌ 실패| I[Stooq CSV 직접 다운로드]
+    
+    I --> J{HTTP 요청 성공?}
+    J -->|✅ CSV 다운로드 성공| D3[Stooq CSV 데이터 반환]
+    J -->|❌ 네트워크 오류| K[프록시 인덱스 확인]
+    
+    K --> L{프록시 매핑 존재?}
+    L -->|❌ 매핑 없음| M[빈 DataFrame 반환]
+    L -->|✅ 매핑 있음| N[프록시 티커로 Yahoo 재시도]
+    
+    N --> O{프록시 성공?}
+    O -->|✅ 프록시 데이터 있음| D4[프록시 데이터 반환]
+    O -->|❌ 프록시도 실패| M
+    
+    subgraph "데이터 정규화"
+        D --> P[_normalize_ohlcv]
+        D2 --> P
+        D3 --> P
+        D4 --> P
+        P --> Q[_to_datetime_index]
+        Q --> R[표준 OHLCV DataFrame]
+    end
+    
+    subgraph "프록시 매핑"
+        PM[PROXY_MAP]
+        PM --> |^GSPC → SPY| N
+        PM --> |^RUT → IWM| N
+    end
+    
+    subgraph "차단 목록"
+        BL[STOOQ_BLOCKLIST]
+        BL --> |^RUT 차단| E
+        BL --> |차단된 심볼| I
+    end
+    
+    style B fill:#ff9999
+    style E fill:#ffcc99
+    style I fill:#ffff99
+    style N fill:#ccffcc
+    style M fill:#ffcccc

@@ -1,0 +1,67 @@
+classDiagram
+    class FetchResult {
+        +pd.DataFrame df
+        +str source
+    }
+    
+    class DataLayer {
+        +download_price_data(ticker, **kwargs) FetchResult
+        +_yahoo_download(ticker, **kwargs) pd.DataFrame
+        +_stooq_download(ticker, start, end) pd.DataFrame
+        +_stooq_csv_download(ticker, start, end) pd.DataFrame
+        +_normalize_ohlcv(df) pd.DataFrame
+        +_to_datetime_index(df) pd.DataFrame
+    }
+    
+    class DateManager {
+        +last_trading_date(today) pd.Timestamp
+        +check_weekend() str
+        +trading_day_window(target) tuple
+        +_weekend_safe_range(period, start, end) tuple
+        +set_asof(date) None
+        +_effective_now() datetime
+    }
+    
+    class PortfolioManager {
+        +process_portfolio(portfolio, cash, interactive) tuple
+        +_ensure_df(portfolio) pd.DataFrame
+        +load_latest_portfolio_state(file) tuple
+    }
+    
+    class TradeLogger {
+        +log_sell(ticker, shares, price, cost, pnl, portfolio) pd.DataFrame
+        +log_manual_buy(buy_price, shares, ticker, stoploss, cash, portfolio) tuple
+        +log_manual_sell(sell_price, shares, ticker, cash, portfolio) tuple
+    }
+    
+    class ConfigManager {
+        +load_benchmarks(script_dir) List[str]
+        +_read_json_file(path) Optional[Dict]
+        +set_data_dir(data_dir) None
+    }
+    
+    class ReportingEngine {
+        +daily_results(portfolio, cash) None
+        +calculateCAMP() float
+        +calculateSharpe() float
+        +calculateSortino() float
+        +calculateMaxDrawdown() tuple
+    }
+    
+    class FileSystem {
+        +PORTFOLIO_CSV Path
+        +TRADE_LOG_CSV Path
+        +DEFAULT_BENCHMARKS List[str]
+        +STOOQ_MAP Dict[str, str]
+        +STOOQ_BLOCKLIST Set[str]
+    }
+    
+    DataLayer --> FetchResult : creates
+    DataLayer --> DateManager : uses
+    PortfolioManager --> DataLayer : depends on
+    PortfolioManager --> TradeLogger : uses
+    TradeLogger --> FileSystem : writes to
+    ConfigManager --> FileSystem : reads from
+    ReportingEngine --> DataLayer : uses
+    ReportingEngine --> ConfigManager : uses
+    DateManager --> FileSystem : accesses globals
